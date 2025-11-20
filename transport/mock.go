@@ -1,6 +1,9 @@
 package transport
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 const (
 	mockClosed = "mock closed"
@@ -36,10 +39,16 @@ func (m *MockTransport) Send(b []byte) error {
 
 func (m *MockTransport) Recv() ([]byte, error) {
 	if m.Closed {
-		return nil, errors.New(mockClosed)
+		return nil, errors.New("mock closed")
 	}
-	msg := <-m.RecvCh
-	return msg, nil
+
+	select {
+	case msg := <-m.RecvCh:
+		return msg, nil
+	case <-time.After(50 * time.Millisecond):
+		// simulate timeout → receiveLoop will exit safely
+		return nil, errors.New("recv timeout")
+	}
 }
 
 func (m *MockTransport) Close() error {
